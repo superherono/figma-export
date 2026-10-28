@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<style>
+  :root {
+    --bg: var(--figma-color-bg, #fff);
+    --bg2: var(--figma-color-bg-secondary, #f5f5f5);
+    --text: var(--figma-color-text, #1e1e1e);
+    --muted: var(--figma-color-text-secondary, #757575);
+    --border: var(--figma-color-border, #e6e6e6);
+    --brand: var(--figma-color-bg-brand, #0d99ff);
+    --brand-hover: var(--figma-color-bg-brand-hover, #007be5);
+    --onbrand: var(--figma-color-text-onbrand, #fff);
+    --danger: var(--figma-color-text-danger, #dc3412);
+    --warning: var(--figma-color-text-warning, #b86200);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 16px; background: var(--bg); color: var(--text); font: 12px/1.45 Inter, system-ui, sans-serif; }
+  h1 { margin: 0 0 12px; font-size: 13px; font-weight: 600; }
+  .label { margin-bottom: 4px; color: var(--muted); }
+  .box { margin-bottom: 14px; padding: 10px; border: 1px solid var(--border); border-radius: 6px; }
+  ul { margin: 0; padding: 0; list-style: none; }
+  #items li { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; }
+  #items .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #items .size { flex: none; color: var(--muted); }
+  #empty { margin: 0; color: var(--muted); }
+  .row { display: flex; align-items: center; gap: 8px; padding: 3px 0; cursor: pointer; }
+  .row select { margin-left: auto; padding: 2px 4px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); color: var(--text); font: inherit; }
+  button { width: 100%; padding: 8px; border: 0; border-radius: 6px; background: var(--brand); color: var(--onbrand); font: inherit; font-weight: 600; cursor: pointer; }
+  button:hover:not(:disabled) { background: var(--brand-hover); }
+  button:disabled { opacity: .45; cursor: default; }
+  button.secondary { margin-top: 8px; background: var(--bg2); color: var(--text); font-weight: 500; }
+  #status { min-height: 18px; margin: 10px 0 0; color: var(--muted); }
+  #status.error { color: var(--danger); }
+  #result { margin-top: 10px; }
+  #resText { margin: 0; }
+  #warn { margin-top: 8px; color: var(--warning); }
+  #warn li { padding: 2px 0; }
+  .hint { margin: 12px 0 0; color: var(--muted); }
+</style>
+</head>
+<body>
+  <h1>Export design</h1>
+
+  <div class="box">
+    <div class="label">Selected</div>
+    <ul id="items"></ul>
+    <p id="empty">Select one or more frames on the canvas.</p>
+  </div>
+
+  <div class="box">
+    <label class="row">Section PNGs
+      <select id="sectionScale"><option value="1">1x</option><option value="2">2x</option></select>
+    </label>
+    <label class="row"><input type="checkbox" id="assets"> Assets: SVG icons, photos, Export settings</label>
+    <label class="row"><input type="checkbox" id="css"> CSS for every layer</label>
+    <label class="row"><input type="checkbox" id="variants"> Component variants (hover and others)</label>
+    <label class="row"><input type="checkbox" id="hidden"> Hidden layers</label>
+  </div>
+
+  <button id="go" disabled>Export</button>
+  <p id="status"></p>
+
+  <div id="result" hidden>
+    <p id="resText"></p>
+    <button id="again" class="secondary">Save again</button>
+    <ul id="warn"></ul>
+  </div>
+
+  <p class="hint">Figma will ask where to save the archive: choose your project's <b>figma-exports</b> folder.</p>
+
+<script>
+  var OPTS = ['assets', 'css', 'variants', 'hidden'];
+  var selCount = 0, busy = false, last = null;
+
+  function $(id) { return document.getElementById(id); }
+  function send(m) { parent.postMessage({ pluginMessage: m }, '*'); }
+
+  function settings() {
+    var s = { sectionScale: Number($('sectionScale').value) };
+    OPTS.forEach(function (k) { s[k] = $(k).checked; });
+    return s;
+  }
+
+  function refresh() {
+    $('go').disabled = busy || !selCount;
+    $('go').textContent = busy ? 'Exporting…' : selCount > 1 ? 'Export (' + selCount + ')' : 'Export';
+  }
+
+  function status(text, isError) {
+    $('status').textContent = text || '';
+    $('status').className = isError ? 'error' : '';
+  }
+
+  function save() {
+    if (!last) return;
+    var url = URL.createObjectURL(new Blob([last.zip], { type: 'application/zip' }));
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = last.name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
+  }
+
+  function renderSelection(items) {
+    selCount = items.length;
+    var ul = $('items');
+    ul.textContent = '';
+    items.forEach(function (it) {
+      var li = document.createElement('li');
+      var name = document.createElement('span');
+      name.className = 'name';
+      name.textContent = it.name;
+      var size = document.createElement('span');
+      size.className = 'size';
+      size.textContent = it.w + '×' + it.h;
+      li.appendChild(name);
+      li.appendChild(size);
+      ul.appendChild(li);
+    });
+    $('empty').hidden = items.length > 0;
+    refresh();
+  }
+
+  function renderDone(m) {
+    var mb = (m.zip.length / 1048576).toFixed(1);
+    $('resText').textContent = 'Done: ' + m.name + ' — ' + mb + ' MB, ' + m.files + ' files, ' + m.layers + ' layers, ' + m.seconds + ' s';
+    var ul = $('warn');
+    ul.textContent = '';
+    m.warnings.forEach(function (w) {
+      var li = document.createElement('li');
+      li.textContent = '⚠ ' + w;
+      ul.appendChild(li);
+    });
+    $('result').hidden = false;
+  }
+
+  onmessage = function (e) {
+    var m = e.data.pluginMessage;
+    if (!m) return;
+    if (m.type === 'selection') {
+      renderSelection(m.items);
+    } else if (m.type === 'settings') {
+      $('sectionScale').value = String(m.settings.sectionScale);
+      OPTS.forEach(function (k) { $(k).checked = !!m.settings[k]; });
+    } else if (m.type === 'progress') {
+      status(m.text);
+    } else if (m.type === 'done') {
+      busy = false;
+      last = m;
+      status('');
+      renderDone(m);
+      refresh();
+      save();
+    } else if (m.type === 'error') {
+      busy = false;
+      status('Error: ' + m.text, true);
+      refresh();
+    }
+  };
+
+  $('go').onclick = function () {
+    busy = true;
+    last = null;
+    $('result').hidden = true;
+    status('Starting…');
+    refresh();
+    send({ type: 'export', settings: settings() });
+  };
+  $('again').onclick = save;
+</script>
+</body>
+</html>

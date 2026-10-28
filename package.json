@@ -1,0 +1,14 @@
+{
+  "name": "figma-export",
+  "version": "1.1.0",
+  "description": "Figma desktop plugin that exports frames to a zip (layer tree, CSS, tokens, PNG, assets) for AI coding agents",
+  "private": true,
+  "license": "MIT",
+  "author": "Dmitrii Morozan",
+  "scripts": {
+    "test": "node --test test/"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
