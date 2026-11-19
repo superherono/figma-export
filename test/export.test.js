@@ -1,4 +1,4 @@
-// figma-export tests: node --test test/
+// figma-export tests: npm test
 'use strict';
 
 const test = require('node:test');
@@ -188,6 +188,8 @@ test('full archive: contents, scales, components, tokens, outline', async () => 
   assert.match(outline, /<Button: State=Default>/);
 
   const manifest = JSON.parse(text(findFile(res.files, 'manifest.json').data));
+  assert.equal(manifest.tool, 'figma-export');
+  assert.match(manifest.formatVersion, /^1\.\d+$/, 'formatVersion must stay 1.x; see FORMAT.md');
   assert.equal(manifest.file, 'Acme Redesign');
   assert.equal(manifest.frames[0].folder, '01-home');
   assert.equal(manifest.frames[0].sections.length, 2);

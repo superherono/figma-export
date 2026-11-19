@@ -1,4 +1,4 @@
-// Regression tests for review findings: node --test test/
+// Regression tests for review findings: npm test
 'use strict';
 
 const test = require('node:test');

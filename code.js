@@ -2,7 +2,9 @@
 // Syntax no newer than ES2017: older versions of the Figma sandbox do not understand ?. and ??.
 'use strict';
 
-var VERSION = '1.1.0';
+var VERSION = '1.2.0';
+// Archive format version, see FORMAT.md: minor = fields added, major = fields removed, renamed or changed in meaning
+var FORMAT_VERSION = '1.0';
 var DEFAULTS = { sectionScale: 2, hidden: false, assets: true, css: true, variants: true };
 var config = { mainTimeout: 10000 };
 var ICON_MAX = 256;          // larger means an illustration
@@ -1113,7 +1115,7 @@ async function buildExport(nodes, settings, report) {
     frames.push(r.summary);
   }
   var manifest = {
-    tool: 'figma-export', version: VERSION, file: figma.root.name, page: figma.currentPage.name,
+    tool: 'figma-export', version: VERSION, formatVersion: FORMAT_VERSION, file: figma.root.name, page: figma.currentPage.name,
     exportedAt: localTime(started), settings: settings, frames: frames
   };
   files.unshift({ path: 'manifest.json', data: json(manifest, 2) });

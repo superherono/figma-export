@@ -1,12 +1,12 @@
 {
   "name": "figma-export",
-  "version": "1.1.0",
-  "description": "Figma desktop plugin that exports frames to a zip (layer tree, CSS, tokens, PNG, assets) for AI coding agents",
+  "version": "1.2.0",
+  "description": "Figma desktop plugin that exports frames to a zip (layer tree, CSS, design tokens, PNG, SVG) for AI coding agents: a free alternative to the Figma MCP server",
   "private": true,
   "license": "MIT",
   "author": "Dmitrii Morozan",
   "scripts": {
-    "test": "node --test test/"
+    "test": "node --test test/export.test.js test/review.test.js"
   },
   "engines": {
     "node": ">=20"

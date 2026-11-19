@@ -1,16 +1,19 @@
 # figma-export
 
-A Figma desktop plugin that exports the selected frames to a zip archive: the layer tree with styles, CSS, design tokens, PNG previews, icons and images. An AI coding agent reads the archive instead of calling the Figma MCP server. The plugin makes no network requests.
+**Figma to code without the Figma MCP limits.** A Figma desktop plugin that exports the selected frames to a zip archive an AI coding agent can read: the layer tree with auto-layout and styles, CSS, design tokens and variables, component variants, PNG previews, SVG icons and original images. It works on the free Figma plan and makes no network requests.
 
 ## Why
 
-Coding agents need structured design data to rebuild a layout: sizes, auto-layout, text styles, variables, component variants. The Figma MCP server provides this, but the free Figma plan allows only a few MCP calls a month. This plugin produces the same kind of data locally, once per frame, in a format an agent can read file by file: a short `outline.txt` first, exact values in `tree.json` and `tokens.json` when needed.
+Coding agents such as Claude Code or Cursor need structured design data to rebuild a layout: sizes, auto-layout, text styles, variables, component variants. The Figma MCP server provides this, but the free Figma plan allows only a few MCP calls a month. This plugin produces the same kind of data locally, once per frame, in files an agent reads one at a time: a short `outline.txt` first, exact values in `tree.json` and `tokens.json` when needed.
+
+The archive format is a documented contract: [FORMAT.md](FORMAT.md) lists the files and fields that stay stable, so other tools can build on it.
 
 ## Install
 
-1. Open the design in the **Figma desktop app** (development plugins do not run in the browser).
-2. Figma menu → Plugins → Development → **Import plugin from manifest…**
-3. Choose `manifest.json` from this repository.
+1. Download the [latest release](https://github.com/superherono/figma-export/releases/latest) (Source code, zip) and unzip it, or `git clone` this repository.
+2. Open the design in the **Figma desktop app** (development plugins do not run in the browser).
+3. Figma menu → Plugins → Development → **Import plugin from manifest…**
+4. Choose `manifest.json` from the downloaded folder.
 
 If Figma rejects the `id` in the manifest: Plugins → Development → New plugin…, take the generated `id` and put it into `manifest.json`.
 
@@ -28,10 +31,10 @@ If the save dialog was closed, click **Save again**.
 
 ```
 <file>-<frame>-<YYYYMMDD-HHMM>.zip
-  manifest.json          file, page, date, options, frames, sections, warnings
+  manifest.json          format version, file, page, date, options, frames, sections, warnings
   01-<frame>/
     outline.txt          one line per layer: type, name, size, position, layout, fill, text
-    tree.json            all layer properties (see below)
+    tree.json            all layer properties
     tokens.json          colors, typography, fonts, shadows, radii, spacing, variables, styles, with usage counts
     components.json      components in use: properties, variants, how each variant differs from the default
     preview.png          the whole frame at 1x (very tall frames are scaled down to 8000 px)
@@ -42,30 +45,7 @@ If the save dialog was closed, click **Save again**.
 
 Cyrillic layer and frame names are transliterated to Latin in file and folder names.
 
-### A layer in tree.json
-
-| Field | Meaning |
-|---|---|
-| `x`, `y` / `fx`, `fy` | position relative to the parent / to the root frame |
-| `w`, `h` | size |
-| `layout` | auto-layout: `mode`, `gap` (`auto` = space-between/around/evenly), `pad` [top, right, bottom, left], `alignMain`, `alignCross`, `wrap`; for Grid: rows, columns, tracks |
-| `grids` | layout grids (columns or rows): count, gutter, width, offset |
-| `size` | Fixed / Hug / Fill, horizontal and vertical |
-| `absolute`, `constraints`, `grid` | behavior inside the parent |
-| `fills`, `stroke`, `effects`, `radius`, `opacity`, `clip`, `mask` | appearance; a color bound to a variable is `{color, var}` |
-| `text` | `chars` and `segments`: font, style, weight, size, line height, letter spacing, color, case, decoration, link, text style |
-| `vars`, `styles` | names of bound variables and styles |
-| `comp` | instance: component set, variant, property values (instance swap gives the component name; same-name properties keep the full `Name#id` key) |
-| `css` | the layer's CSS from Figma (`getCSSAsync`) |
-| `icon`, `illustration`, `asset`, `colors` | exported as one SVG; file path; colors inside |
-| `exports` | files from Export settings |
-| `error` | the layer could not be read: the reason (the rest of the frame is still exported) |
-
-A layer is exported as one SVG (its children are not traversed) only if it consists of shapes without text or photos:
-- with vectors: `icon-*` up to 256 px, `illustration-*` if larger;
-- without vectors (rectangles, lines, ellipses): only a group of two or more shapes no larger than 48 px, such as a hamburger or a close icon.
-
-An auto-layout container of several icons (social links, rating stars) is not an icon: it is traversed and each icon gets its own file. The root frame is always traversed. Inside component variants the traversal goes into icons as well, so that variant diffs show icon color changes.
+Every field, which parts are stable and how format versions change: [FORMAT.md](FORMAT.md).
 
 ## Limitations
 
@@ -76,13 +56,17 @@ An auto-layout container of several icons (social links, rating stars) is not an
 - If Figma does not return an instance's main component within 10 seconds, the export continues without that data.
 - Code is limited to ES2017 syntax: older versions of the Figma plugin sandbox reject `?.` and `??`.
 
+## Privacy
+
+The plugin has no network access (`"networkAccess": {"allowedDomains": ["none"]}` in `manifest.json`). The archive is built inside Figma and saved only where you choose.
+
 ## Tests
 
 ```
 npm test
 ```
 
-or `node --test test/`. Requires Node 20+ and Python: a test reads the generated zip with Python's `zipfile` to check it independently of the plugin code. The Figma API is replaced by a fake in `test/mock.js`. `test/review.test.js` holds regression tests for issues found in review.
+Requires Node 20+ and Python 3: a test reads the generated zip with Python's `zipfile` to check it independently of the plugin code. The Figma API is replaced by a fake in `test/mock.js`. `test/review.test.js` holds regression tests for issues found in review.
 
 ## How AI was used
 
